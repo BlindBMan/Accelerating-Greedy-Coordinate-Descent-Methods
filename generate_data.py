@@ -1,6 +1,8 @@
 import json
 import numpy as np
 from sympy import symbols, Matrix
+from sympy.solvers import solve
+
 
 jon = {
     'n': 200,
@@ -28,6 +30,17 @@ B_star = np.random.normal(0, 1, jon['p'])
 y_mean = X @ B_star
 y = np.random.normal(y_mean, 1)
 jon['y'] = y.tolist()
+
+# theta sequence
+theta_curr, theta_prev = symbols('t_curr t_prev')
+theta_fun = (1 - theta_curr) * theta_prev ** 2 - theta_curr ** 2
+
+theta = [1]
+for i in range(1, jon['k']):
+    sol = solve(theta_fun.subs(theta_prev, theta[i - 1]))[0]
+    theta.append(sol.evalf())
+
+jon['theta'] = theta
 
 # compute gradient
 x = symbols(jon['symbols'])
