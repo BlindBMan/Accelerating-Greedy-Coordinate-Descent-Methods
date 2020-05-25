@@ -1,21 +1,16 @@
 import json
 import numpy as np
-from sympy import symbols, Matrix
-from sympy.solvers import solve
+from numba import jit
 
+
+EPSILON = 0.000001
 
 jon = {
     'n': 200,
     'p': 100,
-    'k': 100
+    'k': 1000
 }
 
-symbols0 = 'x0'
-
-for i in range(1, jon['p']):
-    symbols0 += ' x' + str(i)
-
-jon['symbols'] = symbols0
 
 X_bar = np.random.normal(0, 1, (jon['n'], jon['p']))
 
@@ -31,27 +26,24 @@ y_mean = X @ B_star
 y = np.random.normal(y_mean, 1)
 jon['y'] = y.tolist()
 
-# theta sequence
-theta_curr, theta_prev = symbols('t_curr t_prev')
-theta_fun = (1 - theta_curr) * theta_prev ** 2 - theta_curr ** 2
 
-theta = [1]
-for i in range(1, jon['k']):
-    sol = solve(theta_fun.subs(theta_prev, theta[i - 1]))[0]
-    theta.append(sol.evalf())
+@jit(nopython=True)
+def theta_k(prev_theta):
+    return (prev_theta ** 2 * (np.sqrt(prev_theta ** 2 + 4) - 1)) / 2
 
-jon['theta'] = theta
 
-# compute gradient
-x = symbols(jon['symbols'])
-f = (Matrix(jon['y']) - Matrix(jon['X']) * Matrix(x)).norm() ** 2
+@jit(nopython=True)
+def compute_theta():
+    theta1 = [1]
+    for k in range(1, 10000):
+        thetak = theta_k(theta1[k - 1]) + EPSILON
+        theta1.append(thetak)
 
-f_gradient = []
-for i in range(jon['p']):
-    f_gradient.append(f.diff(x[i]))
+    return theta1
 
-# make list of Add objects serializable
-jon['f_gradient'] = [str(f_gradient[i]) for i in range(len(f_gradient))]
 
-with open('data.json', 'w') as write_file:
+theta = compute_theta()
+jon['theta'] = theta[:jon['k']]
+
+with open('data_1000.json', 'w') as write_file:
     json.dump(jon, write_file)
